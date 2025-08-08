@@ -4,9 +4,9 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "clickup-sync-worker",
+	"name": "clickup-sync",
 	"main": "src/index.ts",
-	"compatibility_date": "2025-08-07",
+	"compatibility_date": "2024-11-21",
 	"compatibility_flags": [
 		"global_fetch_strictly_public"
 	],
@@ -16,7 +16,14 @@
 	},
 	"observability": {
 		"enabled": true
-	}
+	},
+	"kv_namespaces": [
+		{
+			"binding": "STORE",
+			"id": "42407b1eb6ab4156a9ff41af4c81eba1",
+			"preview_id": "6078b2e902424a7184dd8afbcd607a51"
+		}
+	]
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
