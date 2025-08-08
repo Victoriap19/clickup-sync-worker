@@ -1,62 +1,52 @@
 #!/usr/bin/env node
-
 /**
- * Script para obtener los custom field IDs de ClickUp
- * Uso: node scripts/get-custom-fields.js <TASK_ID> <CLICKUP_TOKEN>
+ * Uso:
+ *  node scripts/get-custom-fields.js list <LIST_ID> <CLICKUP_TOKEN>
+ *  node scripts/get-custom-fields.js task <TASK_ID> <CLICKUP_TOKEN>
  */
 
-const taskId = process.argv[2];
-const token = process.argv[3];
-
-if (!taskId || !token) {
-  console.log('Uso: node scripts/get-custom-fields.js <TASK_ID> <CLICKUP_TOKEN>');
-  console.log('');
-  console.log('Ejemplo:');
-  console.log('  node scripts/get-custom-fields.js abc123 pk_123456_ABCDEF');
+const [,, mode, id, token] = process.argv;
+if (!mode || !id || !token) {
+  console.log('Uso:');
+  console.log('  node scripts/get-custom-fields.js list <LIST_ID> <CLICKUP_TOKEN>');
+  console.log('  node scripts/get-custom-fields.js task <TASK_ID> <CLICKUP_TOKEN>');
   process.exit(1);
 }
 
-async function getCustomFields() {
-  try {
-    const response = await fetch(`https://api.clickup.com/api/v2/task/${taskId}?include_subtasks=true`, {
-      headers: {
-        'Authorization': token,
-        'Content-Type': 'application/json'
-      }
-    });
+const base = 'https://api.clickup.com/api/v2';
 
-    if (!response.ok) {
-      throw new Error(`Error ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    
-    console.log('📋 Custom Fields encontrados:');
-    console.log('');
-    
-    if (data.custom_fields && data.custom_fields.length > 0) {
-      data.custom_fields.forEach(field => {
-        console.log(`ID: ${field.id}`);
-        console.log(`Nombre: ${field.name}`);
-        console.log(`Tipo: ${field.type}`);
-        console.log('---');
-      });
-      
-      console.log('');
-      console.log('🔧 Para usar en FIELDS_WHITELIST:');
-      console.log('const FIELDS_WHITELIST = new Set<string>([');
-      data.custom_fields.forEach(field => {
-        console.log(`  "${field.id}", // ${field.name}`);
-      });
-      console.log(']);');
-    } else {
-      console.log('❌ No se encontraron custom fields en esta tarea');
-    }
-    
-  } catch (error) {
-    console.error('❌ Error:', error.message);
-    process.exit(1);
-  }
+async function req(path) {
+  const res = await fetch(base + path, {
+    headers: { Authorization: token, 'Content-Type': 'application/json' }
+  });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
 }
 
-getCustomFields();
+(async () => {
+  try {
+    if (mode === 'list') {
+      const data = await req(`/list/${id}/field`);
+      const fields = data?.fields || [];
+      console.log('FIELDS_WHITELIST snippet:\n');
+      console.log('const FIELDS_WHITELIST = new Set<string>([');
+      for (const f of fields) {
+        console.log(`  "${f.id}", // ${f.name} (${f.type_config?.type || 'unknown'})`);
+      }
+      console.log(']);');
+    } else if (mode === 'task') {
+      const data = await req(`/task/${id}`);
+      const cfs = data?.custom_fields || [];
+      console.log(`Task: ${data?.name} (${data?.id})\nCustom Fields:`);
+      for (const f of cfs) {
+        console.log(`- ${f.id} | ${f.name} | value=${JSON.stringify(f.value)}`);
+      }
+    } else {
+      console.log('Modo inválido. Usa "list" o "task".');
+      process.exit(1);
+    }
+  } catch (err) {
+    console.error('❌ Error:', err.message);
+    process.exit(1);
+  }
+})();
